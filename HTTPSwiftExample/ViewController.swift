@@ -16,7 +16,7 @@
 // to see what your public facing IP address is, the ip address can be used here
 
 // CHANGE THIS TO THE URL FOR YOUR LAPTOP
-let SERVER_URL = "http://10.0.1.6:8000" // change this for your server name!!!
+let SERVER_URL = "http://192.168.1.39:8000" // change this for your server name!!!
 
 import UIKit
 import CoreMotion
@@ -55,6 +55,7 @@ class ViewController: UIViewController, URLSessionDelegate {
     @IBOutlet weak var downArrow: UILabel!
     @IBOutlet weak var leftArrow: UILabel!
     @IBOutlet weak var largeMotionMagnitude: UIProgressView!
+    @IBOutlet weak var dsidInput: UITextField!
     
     // MARK: Class Properties with Observers
     enum CalibrationStage {
@@ -285,6 +286,14 @@ class ViewController: UIViewController, URLSessionDelegate {
         dataTask.resume() // start the task
         
     }
+    			
+    //MARK: Set Dataset ID
+    @IBAction func setDataSetId(_ sender: Any) {
+        if let text: String = dsidInput.text {
+            self.dsid = Int(text) ?? 0
+        }
+        self.dsidInput.resignFirstResponder()
+    }
     
     //MARK: Calibration
     @IBAction func startCalibration(_ sender: AnyObject) {
@@ -327,7 +336,7 @@ class ViewController: UIViewController, URLSessionDelegate {
                 }
 
         })
-        
+            	
         postTask.resume() // start the task
     }
     
@@ -382,6 +391,9 @@ class ViewController: UIViewController, URLSessionDelegate {
             break
         case "['right']":
             blinkLabel(rightArrow)
+            break
+        case "ERROR":
+            print("Model Not Yet Trained")
             break
         default:
             print("Unknown")
