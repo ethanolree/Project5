@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7819EFBC292AC8CE00A64670 /* OpenCVWrapper.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7819EFB8292AC8C600A64670 /* OpenCVWrapper.mm */; };
+		7819EFBD292AC8CE00A64670 /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7819EFB9292AC8CE00A64670 /* opencv2.framework */; };
 		B67483DB1ACA2D6800A9970E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67483DA1ACA2D6800A9970E /* AppDelegate.swift */; };
 		B67483DD1ACA2D6800A9970E /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67483DC1ACA2D6800A9970E /* ViewController.swift */; };
 		B67483E01ACA2D6800A9970E /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B67483DE1ACA2D6800A9970E /* Main.storyboard */; };
@@ -16,6 +18,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		7819EFB7292AC8C600A64670 /* HTTPSwiftExample-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "HTTPSwiftExample-Bridging-Header.h"; sourceTree = "<group>"; };
+		7819EFB8292AC8C600A64670 /* OpenCVWrapper.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenCVWrapper.mm; sourceTree = "<group>"; };
+		7819EFB9292AC8CE00A64670 /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
+		7819EFBA292AC8CE00A64670 /* OpenCVWrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OpenCVWrapper.h; sourceTree = "<group>"; };
+		7819EFBB292AC8CE00A64670 /* PrefixHeader.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PrefixHeader.pch; sourceTree = "<group>"; };
 		B67483D51ACA2D6800A9970E /* HTTPSwiftExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HTTPSwiftExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B67483D91ACA2D6800A9970E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B67483DA1ACA2D6800A9970E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -31,6 +38,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7819EFBD292AC8CE00A64670 /* opencv2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -40,8 +48,13 @@
 		B67483CC1ACA2D6800A9970E = {
 			isa = PBXGroup;
 			children = (
+				7819EFB9292AC8CE00A64670 /* opencv2.framework */,
+				7819EFBA292AC8CE00A64670 /* OpenCVWrapper.h */,
+				7819EFB8292AC8C600A64670 /* OpenCVWrapper.mm */,
+				7819EFBB292AC8CE00A64670 /* PrefixHeader.pch */,
 				B67483D71ACA2D6800A9970E /* HTTPSwiftExample */,
 				B67483D61ACA2D6800A9970E /* Products */,
+				7819EFB7292AC8C600A64670 /* HTTPSwiftExample-Bridging-Header.h */,
 			);
 			sourceTree = "<group>";
 		};
@@ -107,7 +120,7 @@
 					B67483D41ACA2D6800A9970E = {
 						CreatedOnToolsVersion = 6.2;
 						DevelopmentTeam = 86MHT76G63;
-						LastSwiftMigration = 1200;
+						LastSwiftMigration = 1410;
 					};
 				};
 			};
@@ -148,6 +161,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7819EFBC292AC8CE00A64670 /* OpenCVWrapper.mm in Sources */,
 				B67483DD1ACA2D6800A9970E /* ViewController.swift in Sources */,
 				B67483DB1ACA2D6800A9970E /* AppDelegate.swift in Sources */,
 				B694B01A1FA377E4009A4277 /* RingBuffer.swift in Sources */,
@@ -285,12 +299,19 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				DEVELOPMENT_TEAM = 86MHT76G63;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				INFOPLIST_FILE = HTTPSwiftExample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = smu.lab4;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "HTTPSwiftExample-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -299,12 +320,18 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				DEVELOPMENT_TEAM = 86MHT76G63;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				INFOPLIST_FILE = HTTPSwiftExample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = smu.lab4;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "HTTPSwiftExample-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
