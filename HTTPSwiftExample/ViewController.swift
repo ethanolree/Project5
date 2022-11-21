@@ -20,8 +20,9 @@ let SERVER_URL = "http://192.168.1.39:8000" // change this for your server name!
 
 import UIKit
 import CoreMotion
+import AVFoundation
 
-class ViewController: UIViewController, URLSessionDelegate {
+class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptureDelegate {
     
     // MARK: Class Properties
     lazy var session: URLSession = {
@@ -44,80 +45,41 @@ class ViewController: UIViewController, URLSessionDelegate {
     let animation = CATransition()
     let motion = CMMotionManager()
     
+    // AV Camera
+    let captureSession = AVCaptureSession()
+    
+    var backFacingCamera: AVCaptureDevice?
+    var frontFacingCamera: AVCaptureDevice?
+    var currentDevice: AVCaptureDevice!
+    
+    var stillImageOutput: AVCapturePhotoOutput!
+    var stillImage: UIImage?
+    var cameraPreviewLayer: AVCaptureVideoPreviewLayer?
+    
     var magValue = 0.1
     var isCalibrating = false
     
     var isWaitingForMotionData = false
     
+    @IBOutlet weak var updateButton: UIButton!
+    @IBOutlet weak var dsidButton1: UIButton!
+    @IBOutlet weak var dsidButton2: UIButton!
+    @IBOutlet weak var calibrateButton: UIButton!
+    @IBOutlet weak var guessButton: UIButton!
     @IBOutlet weak var dsidLabel: UILabel!
-    @IBOutlet weak var upArrow: UILabel!
-    @IBOutlet weak var rightArrow: UILabel!
-    @IBOutlet weak var downArrow: UILabel!
-    @IBOutlet weak var leftArrow: UILabel!
-    @IBOutlet weak var largeMotionMagnitude: UIProgressView!
+    @IBOutlet var mainView: UIView!
     @IBOutlet weak var dsidInput: UITextField!
+    @IBOutlet weak var countdownLabel: UILabel!
     
     // MARK: Class Properties with Observers
     enum CalibrationStage {
         case notCalibrating
-        case up
-        case right
-        case down
-        case left
+        case pose1
+        case pose2
+        case pose3
     }
     
-    var calibrationStage:CalibrationStage = .notCalibrating {
-        didSet{
-            switch calibrationStage {
-            case .up:
-                self.isCalibrating = true
-                DispatchQueue.main.async{
-                    self.setAsCalibrating(self.upArrow)
-                    self.setAsNormal(self.rightArrow)
-                    self.setAsNormal(self.leftArrow)
-                    self.setAsNormal(self.downArrow)
-                }
-                break
-            case .left:
-                self.isCalibrating = true
-                DispatchQueue.main.async{
-                    self.setAsNormal(self.upArrow)
-                    self.setAsNormal(self.rightArrow)
-                    self.setAsCalibrating(self.leftArrow)
-                    self.setAsNormal(self.downArrow)
-                }
-                break
-            case .down:
-                self.isCalibrating = true
-                DispatchQueue.main.async{
-                    self.setAsNormal(self.upArrow)
-                    self.setAsNormal(self.rightArrow)
-                    self.setAsNormal(self.leftArrow)
-                    self.setAsCalibrating(self.downArrow)
-                }
-                break
-                
-            case .right:
-                self.isCalibrating = true
-                DispatchQueue.main.async{
-                    self.setAsNormal(self.upArrow)
-                    self.setAsCalibrating(self.rightArrow)
-                    self.setAsNormal(self.leftArrow)
-                    self.setAsNormal(self.downArrow)
-                }
-                break
-            case .notCalibrating:
-                self.isCalibrating = false
-                DispatchQueue.main.async{
-                    self.setAsNormal(self.upArrow)
-                    self.setAsNormal(self.rightArrow)
-                    self.setAsNormal(self.leftArrow)
-                    self.setAsNormal(self.downArrow)
-                }
-                break
-            }
-        }
-    }
+    var calibrationStage:CalibrationStage = .notCalibrating
     
     var dsid:Int = 0 {
         didSet{
@@ -129,44 +91,7 @@ class ViewController: UIViewController, URLSessionDelegate {
         }
     }
     
-    @IBAction func magnitudeChanged(_ sender: UISlider) {
-        self.magValue = Double(sender.value)
-    }
-    
-    // MARK: Core Motion Updates
-    func startMotionUpdates(){
-        // some internal inconsistency here: we need to ask the device manager for device
-        
-        if self.motion.isDeviceMotionAvailable{
-            self.motion.deviceMotionUpdateInterval = 1.0/200
-            self.motion.startDeviceMotionUpdates(to: motionOperationQueue, withHandler: self.handleMotion )
-        }
-    }
-    
-    func handleMotion(_ motionData:CMDeviceMotion?, error:Error?){
-        if let accel = motionData?.userAcceleration {
-            self.ringBuffer.addNewData(xData: accel.x, yData: accel.y, zData: accel.z)
-            let mag = fabs(accel.x)+fabs(accel.y)+fabs(accel.z)
-            
-            DispatchQueue.main.async{
-                //show magnitude via indicator
-                self.largeMotionMagnitude.progress = Float(mag)/0.2
-            }
-            
-            if mag > self.magValue {
-                // buffer up a bit more data and then notify of occurrence
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: {
-                    self.calibrationOperationQueue.addOperation {
-                        // something large enough happened to warrant
-                        self.largeMotionEventOccurred()
-                    }
-                })
-            }
-        }
-    }
-    
-    
-    //MARK: Calibration procedure
+    /*//MARK: Calibration procedure
     func largeMotionEventOccurred(){
         if(self.isCalibrating){
             //send a labeled example
@@ -193,38 +118,7 @@ class ViewController: UIViewController, URLSessionDelegate {
                 
             }
         }
-    }
-    
-    func nextCalibrationStage(){
-        switch self.calibrationStage {
-        case .notCalibrating:
-            //start with up arrow
-            self.calibrationStage = .up
-            setDelayedWaitingToTrue(1.0)
-            break
-        case .up:
-            //go to right arrow
-            self.calibrationStage = .right
-            setDelayedWaitingToTrue(1.0)
-            break
-        case .right:
-            //go to down arrow
-            self.calibrationStage = .down
-            setDelayedWaitingToTrue(1.0)
-            break
-        case .down:
-            //go to left arrow
-            self.calibrationStage = .left
-            setDelayedWaitingToTrue(1.0)
-            break
-            
-        case .left:
-            //end calibration
-            self.calibrationStage = .notCalibrating
-            setDelayedWaitingToTrue(1.0)
-            break
-        }
-    }
+    }*/
     
     func setDelayedWaitingToTrue(_ time:Double){
         DispatchQueue.main.asyncAfter(deadline: .now() + time, execute: {
@@ -249,15 +143,13 @@ class ViewController: UIViewController, URLSessionDelegate {
         
         //OPENCV
         print("\(OpenCVWrapper.openCVVersionString())")
+        countdownLabel.text = ""
+        configure()
         
         // create reusable animation
         animation.timingFunction = CAMediaTimingFunction(name: CAMediaTimingFunctionName.easeInEaseOut)
         animation.type = CATransitionType.fade
         animation.duration = 0.5
-        
-        
-        // setup core motion handlers
-        startMotionUpdates()
         
         dsid = 1 // set this and it will update UI
     }
@@ -297,15 +189,63 @@ class ViewController: UIViewController, URLSessionDelegate {
         self.dsidInput.resignFirstResponder()
     }
     
+    //MARK: Make Guess
+    @IBAction func makeGuess(_ sender: Any) {
+    }
+    
     //MARK: Calibration
     @IBAction func startCalibration(_ sender: AnyObject) {
-        self.isWaitingForMotionData = false // dont do anything yet
-        nextCalibrationStage()
-        
+        if !self.isCalibrating {
+            nextCalibrationStage()
+        }
+    }
+    
+    func nextCalibrationStage() {
+        switch self.calibrationStage {
+        case .notCalibrating:
+            //start with up arrow
+            self.calibrationStage = .pose1
+            runPoseCapture()
+            break
+        case .pose1:
+            //go to right arrow
+            self.calibrationStage = .pose2
+            runPoseCapture()
+            break
+        case .pose2:
+            //go to down arrow
+            self.calibrationStage = .pose3
+            runPoseCapture()
+            break
+        case .pose3:
+            //go to left arrow
+            self.calibrationStage = .notCalibrating
+            self.isCalibrating = false;
+            self.countdownLabel.text = ""
+            break
+        }
+    }
+    
+    func runPoseCapture() {
+        var runCount = 3
+        self.isCalibrating = true;
+
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            
+            self.countdownLabel.text = "Taking image in \(runCount)..."
+            runCount -= 1
+
+            if runCount == -1 {
+                self.countdownLabel.text = "POSE"
+                timer.invalidate()
+                self.capture()
+                self.nextCalibrationStage()
+            }
+        }
     }
     
     //MARK: Comm with Server
-    func sendFeatures(_ array:[Double], withLabel label:CalibrationStage){
+    func sendFeatures(_ array:[UInt32], withLabel label:CalibrationStage){
         let baseURL = "\(SERVER_URL)/AddDataPoint"
         let postUrl = URL(string: "\(baseURL)")
         
@@ -342,7 +282,7 @@ class ViewController: UIViewController, URLSessionDelegate {
         postTask.resume() // start the task
     }
     
-    func getPrediction(_ array:[Double]){
+    func getPrediction(_ array:[UInt32]){
         let baseURL = "\(SERVER_URL)/PredictOne"
         let postUrl = URL(string: "\(baseURL)")
         
@@ -382,17 +322,14 @@ class ViewController: UIViewController, URLSessionDelegate {
     
     func displayLabelResponse(_ response:String){
         switch response {
-        case "['up']":
-            blinkLabel(upArrow)
+        case "['pose1']":
+            print("POSE1")
             break
-        case "['down']":
-            blinkLabel(downArrow)
+        case "['pose2']":
+            print("POSE2")
             break
-        case "['left']":
-            blinkLabel(leftArrow)
-            break
-        case "['right']":
-            blinkLabel(rightArrow)
+        case "['pose3']":
+            print("POSE3")
             break
         case "ERROR":
             print("Model Not Yet Trained")
@@ -470,6 +407,87 @@ class ViewController: UIViewController, URLSessionDelegate {
                 print("json error: \(error.localizedDescription)")
             }
             return NSDictionary() // just return empty
+        }
+    }
+    
+    private func configure() {
+        // Preset the session for taking photo in full resolution
+        captureSession.sessionPreset = AVCaptureSession.Preset.photo
+        
+        let deviceDiscoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInDualCamera], mediaType: AVMediaType.video, position: .unspecified)
+                 
+        for device in deviceDiscoverySession.devices {
+            if device.position == .back {
+                backFacingCamera = device
+            } else if device.position == .front {
+                frontFacingCamera = device
+            }
+        }
+         
+        currentDevice = backFacingCamera
+         
+        guard let captureDeviceInput = try? AVCaptureDeviceInput(device: currentDevice) else {
+            return
+        }
+        
+        // Configure the session with the output for capturing still images
+        stillImageOutput = AVCapturePhotoOutput()
+        
+        // Configure the session with the input and the output devices
+        captureSession.addInput(captureDeviceInput)
+        captureSession.addOutput(stillImageOutput)
+        
+        // Provide a camera preview
+        cameraPreviewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        view.layer.addSublayer(cameraPreviewLayer!)
+        cameraPreviewLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
+        cameraPreviewLayer?.frame = view.layer.frame
+                 
+        // Bring the camera button to front
+        view.bringSubviewToFront(updateButton)
+        view.bringSubviewToFront(dsidInput)
+        view.bringSubviewToFront(dsidButton1)
+        view.bringSubviewToFront(dsidButton2)
+        view.bringSubviewToFront(dsidLabel)
+        view.bringSubviewToFront(calibrateButton)
+        view.bringSubviewToFront(guessButton)
+        view.bringSubviewToFront(countdownLabel)
+        captureSession.startRunning()
+    }
+    
+    private func capture() {
+        // Set photo settings
+        let photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+        photoSettings.isHighResolutionPhotoEnabled = true
+        photoSettings.flashMode = .auto
+         
+        stillImageOutput.isHighResolutionCaptureEnabled = true
+        stillImageOutput.capturePhoto(with: photoSettings, delegate: self)
+    }
+    
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        guard error == nil else {
+            return
+        }
+         
+        // Get the image from the photo buffer
+        guard let imageData = photo.fileDataRepresentation() else {
+            return
+        }
+         
+        stillImage = UIImage(data: imageData)
+        
+        if let rawImageData: Data = stillImage?.jpegData(compressionQuality: 0.01) {
+            let arr2 = rawImageData.withUnsafeBytes {
+                Array(UnsafeBufferPointer<UInt32>(start: $0, count: rawImageData.count/MemoryLayout<UInt32>.stride))
+            }
+            print(arr2.count)
+            
+            /*if (isCalibrating) {
+                self.sendFeatures(arr2, withLabel: self.calibrationStage)
+            } else {
+                getPrediction(arr2)
+            }*/
         }
     }
 
