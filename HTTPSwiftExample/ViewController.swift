@@ -191,6 +191,7 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
     
     //MARK: Make Guess
     @IBAction func makeGuess(_ sender: Any) {
+        self.capture()
     }
     
     //MARK: Calibration
@@ -239,13 +240,12 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
                 self.countdownLabel.text = "POSE"
                 timer.invalidate()
                 self.capture()
-                self.nextCalibrationStage()
             }
         }
     }
     
     //MARK: Comm with Server
-    func sendFeatures(_ array:[UInt32], withLabel label:CalibrationStage){
+    func sendFeatures(_ data:String, withLabel label:CalibrationStage){
         let baseURL = "\(SERVER_URL)/AddDataPoint"
         let postUrl = URL(string: "\(baseURL)")
         
@@ -253,7 +253,7 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         var request = URLRequest(url: postUrl!)
         
         // data to send in body of post request (send arguments as json)
-        let jsonUpload:NSDictionary = ["feature":array,
+        let jsonUpload:NSDictionary = ["feature":data,
                                        "label":"\(label)",
                                        "dsid":self.dsid]
         
@@ -282,7 +282,7 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         postTask.resume() // start the task
     }
     
-    func getPrediction(_ array:[UInt32]){
+    func getPrediction(_ data:String){
         let baseURL = "\(SERVER_URL)/PredictOne"
         let postUrl = URL(string: "\(baseURL)")
         
@@ -290,7 +290,7 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         var request = URLRequest(url: postUrl!)
         
         // data to send in body of post request (send arguments as json)
-        let jsonUpload:NSDictionary = ["feature":array, "dsid":self.dsid]
+        let jsonUpload:NSDictionary = ["feature":data, "dsid":self.dsid]
         
         
         let requestBody:Data? = self.convertDictionaryToData(with:jsonUpload)
@@ -481,13 +481,13 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
             let arr2 = rawImageData.withUnsafeBytes {
                 Array(UnsafeBufferPointer<UInt32>(start: $0, count: rawImageData.count/MemoryLayout<UInt32>.stride))
             }
-            print(arr2.count)
             
-            /*if (isCalibrating) {
-                self.sendFeatures(arr2, withLabel: self.calibrationStage)
+            if (isCalibrating) {
+                self.sendFeatures(imageData.base64EncodedString(), withLabel: self.calibrationStage)
+                self.nextCalibrationStage()
             } else {
-                getPrediction(arr2)
-            }*/
+                getPrediction(imageData.base64EncodedString())
+            }
         }
     }
 
