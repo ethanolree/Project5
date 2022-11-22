@@ -22,7 +22,7 @@ import UIKit
 import CoreMotion
 import AVFoundation
 
-class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptureDelegate {
+class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptureDelegate, UIPickerViewDelegate, UIPickerViewDataSource {
     
     // MARK: Class Properties
     lazy var session: URLSession = {
@@ -64,8 +64,14 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
     @IBOutlet weak var updateButton: UIButton!
     @IBOutlet weak var dsidButton1: UIButton!
     @IBOutlet weak var dsidButton2: UIButton!
+    @IBOutlet weak var convLabel1: UILabel!
+    @IBOutlet weak var convLabel2: UILabel!
+    @IBOutlet weak var convSlider: UISlider!
     @IBOutlet weak var calibrateButton: UIButton!
+    @IBOutlet weak var rescalingLabel: UILabel!
+    @IBOutlet weak var rescalingSwitch: UISwitch!
     @IBOutlet weak var guessButton: UIButton!
+    @IBOutlet weak var solverPicker: UIPickerView!
     @IBOutlet weak var dsidLabel: UILabel!
     @IBOutlet var mainView: UIView!
     @IBOutlet weak var dsidInput: UITextField!
@@ -81,6 +87,11 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
     
     var calibrationStage:CalibrationStage = .notCalibrating
     
+    let solverOptions = ["newton", "lbfgs", "fista"]
+    var selectedSolver = "newton"
+    var convergenceThreshold = Float(0.01)
+    var rescaling = true
+    
     var dsid:Int = 0 {
         didSet{
             DispatchQueue.main.async{
@@ -90,35 +101,6 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
             }
         }
     }
-    
-    /*//MARK: Calibration procedure
-    func largeMotionEventOccurred(){
-        if(self.isCalibrating){
-            //send a labeled example
-            if(self.calibrationStage != .notCalibrating && self.isWaitingForMotionData)
-            {
-                self.isWaitingForMotionData = false
-                
-                // send data to the server with label
-                sendFeatures(self.ringBuffer.getDataAsVector(),
-                             withLabel: self.calibrationStage)
-                
-                self.nextCalibrationStage()
-            }
-        }
-        else
-        {
-            if(self.isWaitingForMotionData)
-            {
-                self.isWaitingForMotionData = false
-                //predict a label
-                getPrediction(self.ringBuffer.getDataAsVector())
-                // dont predict again for a bit
-                setDelayedWaitingToTrue(2.0)
-                
-            }
-        }
-    }*/
     
     func setDelayedWaitingToTrue(_ time:Double){
         DispatchQueue.main.asyncAfter(deadline: .now() + time, execute: {
@@ -141,8 +123,9 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        //OPENCV
-        print("\(OpenCVWrapper.openCVVersionString())")
+        self.solverPicker.delegate = self
+        self.solverPicker.dataSource = self
+        
         countdownLabel.text = ""
         configure()
         
@@ -154,6 +137,16 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         dsid = 1 // set this and it will update UI
     }
 
+    // MARK: update model threshold
+    @IBAction func convSliderChange(_ sender: UISlider) {
+        convergenceThreshold = sender.value
+    }
+    
+    // MARK: update model rescaling
+    @IBAction func rescalingToggleChange(_ sender: UISwitch) {
+        rescaling = sender.isOn
+    }
+    
     //MARK: Get New Dataset ID
     @IBAction func getDataSetId(_ sender: AnyObject) {
         // create a GET request for a new DSID from server
@@ -191,7 +184,9 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
     
     //MARK: Make Guess
     @IBAction func makeGuess(_ sender: Any) {
-        self.capture()
+        if (!self.isCalibrating) {
+            self.capture()
+        }
     }
     
     //MARK: Calibration
@@ -199,6 +194,22 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         if !self.isCalibrating {
             nextCalibrationStage()
         }
+    }
+    
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 1
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return solverOptions.count
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return solverOptions[row]
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        selectedSolver = solverOptions[row]
     }
     
     func nextCalibrationStage() {
@@ -324,15 +335,27 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         switch response {
         case "['pose1']":
             print("POSE1")
+            DispatchQueue.main.async {
+                self.countdownLabel.text = "Pose 1?"
+            }
             break
         case "['pose2']":
             print("POSE2")
+            DispatchQueue.main.async {
+                self.countdownLabel.text = "Pose 2?"
+            }
             break
         case "['pose3']":
             print("POSE3")
+            DispatchQueue.main.async {
+                self.countdownLabel.text = "Pose 3?"
+            }
             break
         case "ERROR":
             print("Model Not Yet Trained")
+            DispatchQueue.main.async {
+                self.countdownLabel.text = "Model Not Yet Trained"
+            }
             break
         default:
             print("Unknown")
@@ -356,8 +379,19 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         let baseURL = "\(SERVER_URL)/UpdateModel"
         let query = "?dsid=\(self.dsid)"
         
+        // data to send in body of post request (send arguments as json)
+        let jsonUpload:NSDictionary = ["solver":selectedSolver,"rescaling":rescaling,"convergenceThreshold":convergenceThreshold]
+        
+        
+        let requestBody:Data? = self.convertDictionaryToData(with:jsonUpload)
+        
+        
+        
         let getUrl = URL(string: baseURL+query)
-        let request: URLRequest = URLRequest(url: getUrl!)
+        var request: URLRequest = URLRequest(url: getUrl!)
+        request.httpMethod = "POST"
+        request.httpBody = requestBody
+        
         let dataTask : URLSessionDataTask = self.session.dataTask(with: request,
               completionHandler:{(data, response, error) in
                 // handle error!
@@ -443,8 +477,9 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         cameraPreviewLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
         cameraPreviewLayer?.frame = view.layer.frame
                  
-        // Bring the camera button to front
+        // Bring the UI objects to the front
         view.bringSubviewToFront(updateButton)
+        view.bringSubviewToFront(solverPicker)
         view.bringSubviewToFront(dsidInput)
         view.bringSubviewToFront(dsidButton1)
         view.bringSubviewToFront(dsidButton2)
@@ -452,6 +487,11 @@ class ViewController: UIViewController, URLSessionDelegate, AVCapturePhotoCaptur
         view.bringSubviewToFront(calibrateButton)
         view.bringSubviewToFront(guessButton)
         view.bringSubviewToFront(countdownLabel)
+        view.bringSubviewToFront(convLabel1)
+        view.bringSubviewToFront(convLabel2)
+        view.bringSubviewToFront(convSlider)
+        view.bringSubviewToFront(rescalingLabel)
+        view.bringSubviewToFront(rescalingSwitch)
         captureSession.startRunning()
     }
     
